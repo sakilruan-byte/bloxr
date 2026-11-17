@@ -1,0 +1,35 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "# Laboratório de IA Bloxr\n",
+        "No Kaggle, use notebook privado, Internet ligada e GPU T4 x2. Execute as duas primeiras células de código uma vez. A segunda abre o painel com Qwen, DeepSeek e os modos de dois modelos. O primeiro download pode demorar. A célula seguinte é uma alternativa manual se o painel não aparecer.\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "execution_count": null,
+      "outputs": [],
+      "source": "import os\nimport subprocess\nimport tarfile\nfrom pathlib import Path\n\nbackend = Path('/tmp/bloxr-llama-b12438')\nbackend.mkdir(exist_ok=True)\nrelease = 'https://github.com/ggml-org/llama.cpp/releases/download/b12438/'\nfor name in ('llama-b12438-bin-ubuntu-cuda-12.8-x64.tar.gz', 'cudart-llama-b12438-bin-ubuntu-cuda-12.8-x64.tar.gz'):\n    archive = backend / name\n    if not archive.exists():\n        partial = str(archive) + '.part'\n        subprocess.run(['curl', '-fsSL', '--retry', '2', '--max-time', '300', '-o', partial, release + name], check=True)\n        Path(partial).replace(archive)\n    with tarfile.open(archive, 'r:gz') as bundle:\n        bundle.extractall(backend, filter='data')\nserver = next(backend.rglob('llama-server'))\nfor lib in backend.rglob('libcudart.so*'):\n    if lib.parent != server.parent and not (server.parent / lib.name).exists():\n        (server.parent / lib.name).symlink_to(lib)\nfor lib in backend.rglob('libcublas*.so*'):\n    if lib.parent != server.parent and not (server.parent / lib.name).exists():\n        (server.parent / lib.name).symlink_to(lib)\nenv = {**os.environ, 'LD_LIBRARY_PATH': str(server.parent) + ':' + os.environ.get('LD_LIBRARY_PATH', '')}\nprint(subprocess.check_output([str(server), '--list-devices'], env=env, stderr=subprocess.STDOUT, text=True), flush=True)\n\n%pip -q install \"huggingface-hub>=0.34,<2\"\n"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "execution_count": null,
+      "outputs": [],
+      "source": "import json\nimport os\nimport socket\nimport time\nimport urllib.request\n\nfrom huggingface_hub import hf_hub_download\n\ngpus = subprocess.check_output(\n    [\"nvidia-smi\", \"--query-gpu=uuid\", \"--format=csv,noheader\"],\n    text=True,\n).splitlines()\nif len(gpus) < GPU_COUNT:\n    raise RuntimeError(f\"Selecione uma sessão Kaggle com {GPU_COUNT} GPU(s).\")\n\nmodel_path = hf_hub_download(MODEL_REPO, filename=MODEL_FILE)\nwith socket.socket() as listener:\n    listener.bind((\"127.0.0.1\", 0))\n    port = listener.getsockname()[1]\n\nhttp = urllib.request.build_opener(urllib.request.ProxyHandler({}))\n\ndef request(route, payload=None, timeout=10):\n    data = None if payload is None else json.dumps(payload).encode()\n    req = urllib.request.Request(\n        f\"http://127.0.0.1:{port}{route}\", data=data,\n        headers={\"Content-Type\": \"application/json\"},\n    )\n    with http.open(req, timeout=timeout) as response:\n        return json.load(response)\n\nenv = {\n    **os.environ,\n    \"CUDA_VISIBLE_DEVICES\": \",\".join(gpu.strip() for gpu in gpus[:GPU_COUNT]),\n    \"LD_LIBRARY_PATH\": str(server.parent) + \":\" + os.environ.get(\"LD_LIBRARY_PATH\", \"\"),\n}\nlog_path = Path(\"/kaggle/working/bloxr-llama.log\")\nwith log_path.open(\"w\") as log:\n    process = subprocess.Popen(\n        [str(server), \"--model\", model_path, \"--host\", \"127.0.0.1\",\n         \"--port\", str(port), \"--n-gpu-layers\", \"999\", \"--split-mode\", \"layer\", \"--tensor-split\", \"1,1\",\n         \"--ctx-size\", str(CONTEXT), \"--parallel\", \"1\", \"--threads\", \"2\",\n         \"--batch-size\", \"256\", \"--no-warmup\", \"--no-context-shift\"],\n        env=env, stdout=log, stderr=subprocess.STDOUT,\n    )\ntry:\n    deadline = time.monotonic() + 240\n    while time.monotonic() < deadline and process.poll() is None:\n        try:\n            if request(\"/health\", timeout=3).get(\"status\") == \"ok\":\n                break\n        except OSError:\n            pass\n        time.sleep(1)\n    else:\n        raise RuntimeError(f\"O modelo não carregou. Confira {log_path}.\")\n\n    answer = request(\"/v1/chat/completions\", {\n        \"messages\": [{\"role\": \"user\", \"content\": TAREFA}],\n        \"max_tokens\": MAX_TOKENS,\n        \"temperature\": 0.2,\n        \"stream\": False,\n    }, timeout=6600)\n    resposta = answer[\"choices\"][0][\"message\"][\"content\"]\n    print(answer.get(\"usage\", {}), flush=True)\nfinally:\n    process.terminate()\n    try:\n        process.wait(timeout=10)\n    except subprocess.TimeoutExpired:\n        process.kill()\n        process.wait()\n"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 4
+}

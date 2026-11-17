@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Painel do laboratório IA Bloxr para Colab e Kaggle.">
+<title>Bloxr | Laboratório IA</title><link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header><div class="brand"><span class="symbol" aria-hidden="true">B</span><span>Bloxr</span></div><button class="quiet" id="settings" type="button">Conexões</button></header>
+<main>
+<h1>Laboratório <em>IA</em></h1><p class="hint">Conexão direta com Kaggle · sem login do ChatGPT</p>
+<div class="workspace">
+<section class="composer" aria-label="Configuração do prompt">
+<form id="task">
+<fieldset><legend>Plataforma</legend>
+<div class="platforms">
+<label><input type="radio" name="provider" value="colab"><span><i class="colab" aria-hidden="true"></i>Google Colab</span></label>
+<label><input type="radio" name="provider" value="kaggle" checked><span><i class="kaggle" aria-hidden="true"></i>Kaggle</span></label>
+</div></fieldset>
+<div class="settings-row">
+<label>Modelo<select id="model"></select></label>
+<label>Tokens de saída<input id="tokens" type="number" value="4096" min="1" max="8192" required></label>
+</div>
+<p class="hint" id="model-hint"></p>
+<label for="prompt">Prompt</label>
+<textarea id="prompt" rows="8" maxlength="50000" placeholder="Digite sua tarefa…" required></textarea>
+<div class="image-controls"><label class="button file-button">Adicionar imagem<input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button id="image-remove" class="quiet" type="button" hidden>Remover imagem</button><p class="hint" id="image-hint">A imagem será enviada somente para uma API de visão configurada em Conexões.</p><img id="image-preview" alt="Prévia da imagem selecionada" hidden></div>
+<div class="actions"><button id="send" class="primary" type="submit">Preparar execução <span aria-hidden="true">↗</span></button></div>
+</form>
+<p class="hint" id="mode"></p>
+<div id="handoff" hidden>
+<ol><li>Baixe o notebook preparado.</li><li>Abra a plataforma, importe o notebook e execute as células com GPU.</li><li>Baixe <strong>bloxr-output.txt</strong> e importe no painel de resposta.</li></ol>
+<div class="actions"><a class="button" id="notebook-download" download>Baixar notebook</a><a class="button" id="provider-link" target="_blank" rel="noopener noreferrer">Abrir plataforma ↗</a></div>
+</div>
+</section>
+<section class="result" aria-labelledby="response-title">
+<div class="result-head"><h2 id="response-title">Resposta</h2><button id="copy" class="quiet" type="button" disabled>Copiar</button></div>
+<p id="empty">A resposta do modelo aparece aqui.</p><pre id="output" tabindex="0" hidden></pre>
+<div id="result-images" class="result-images" aria-label="Imagens recebidas do Kaggle"></div><div class="result-foot"><label class="button file-button">Importar saída<input id="import" type="file" accept=".txt,text/plain"></label></div>
+</section>
+</div>
+<p class="status" id="status" role="status" aria-live="polite"></p>
+<button class="button" id="resume" type="button" hidden>Consultar última execução</button>
+</main>
+<dialog id="connection">
+<form id="connection-form">
+<h2>Conexão com <span id="connection-help"></span></h2><p class="hint">A plataforma escolhida no painel define esta conexão.</p>
+<div id="kaggle-credentials" hidden><label>Usuário do Kaggle<input id="kaggle-user" autocomplete="off" placeholder="Seu @ do perfil, sem o @"></label><label>Token da API do Kaggle<input id="kaggle-token" type="password" autocomplete="off" spellcheck="false"></label><p class="hint">Use o token KGAT_ ou a chave do arquivo kaggle.json. A conexão será testada antes de salvar. O token fica somente nesta aba, inclusive ao recarregar, e é apagado ao fechar a aba ou desconectar. Cada envio cria um notebook privado com seu prompt no Kaggle.</p></div>
+<p><a href="https://www.kaggle.com/settings" target="_blank" rel="noopener noreferrer">Abrir conta e tokens no Kaggle ↗</a> · <a href="https://www.kaggle.com/benchmarks" target="_blank" rel="noopener noreferrer">Testes de IA / créditos ↗</a></p><div id="endpoint-credentials">
+<label>URL HTTPS da API<input id="endpoint" type="url" placeholder="https://servidor.example/v1/chat/completions"></label>
+<label>Token da API (opcional)<input id="token" type="password" autocomplete="off"></label>
+<p class="hint">Use um endpoint compatível com Chat Completions que permita acesso deste site. A conexão fica nesta aba até recarregar.</p>
+<p class="hint" id="model-ids"></p></div>
+<p id="connection-error" role="alert" class="error"></p><div class="actions"><button class="primary" type="submit">Testar e conectar</button><button class="quiet" id="disconnect" type="button">Desconectar</button><button class="quiet" id="close" type="button">Fechar</button></div>
+</form>
+</dialog>
+</body></html>
