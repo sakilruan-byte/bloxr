@@ -65,7 +65,6 @@ async function resultText(url) {
 
 async function kaggle(request, env, url) {
   if (request.method !== 'POST') return json({ error: 'Método inválido.' }, 405);
-  if (request.headers.get('Origin') !== url.origin) return json({ error: 'Origem inválida.' }, 403);
   if (!(request.headers.get('Content-Type') || '').startsWith('application/json')) return json({ error: 'Formato inválido.' }, 415);
   try {
     const raw = await request.text();
@@ -139,5 +138,5 @@ async function kaggle(request, env, url) {
 
 export function kaggleApi(action, data) {
  const url = new URL('/api/kaggle/' + action, location.origin);
- return kaggle(new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: location.origin }, body: JSON.stringify(data) }), {}, url);
+ return kaggle(new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }), {}, url);
 }
