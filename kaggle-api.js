@@ -1,4 +1,4 @@
-import { notebookFor, kaggleModels } from './app.js';
+import { notebookFor, kaggleModels } from './app.js?v=2';
 const assets = { 'kaggle-notebook.json': JSON.stringify(await (await fetch('./kaggle-notebook.json')).json()) };
 const kaggleBase = 'https://api.kaggle.com/v1/kernels.KernelsApiService/';
 const jobPattern = /^bloxr-[a-f0-9]{16}$/;
