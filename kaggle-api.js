@@ -1,4 +1,4 @@
-import { notebookFor, kaggleModels } from './app.js?v=2';
+import { notebookFor, kaggleModels } from './app.js?v=3';
 const assets = { 'kaggle-notebook.json': JSON.stringify(await (await fetch('./kaggle-notebook.json')).json()) };
 const kaggleBase = 'https://api.kaggle.com/v1/kernels.KernelsApiService/';
 const jobPattern = /^bloxr-[a-f0-9]{16}$/;
@@ -36,18 +36,22 @@ async function rpc(method, data, token) {
   return body;
 }
 
-function trustedOutputUrl(url) {
+export function trustedOutputUrl(url) {
   let source;
-  try { source = new URL(url); } catch { throw new KaggleError(502, 'O endereço de saída do Kaggle é inválido.'); }
+  try {
+    if (typeof url !== 'string' || !url.trim()) throw new Error('missing URL');
+    source = new URL(url, 'https://www.kaggle.com/');
+  } catch { throw new KaggleError(502, 'O endereço de saída do Kaggle é inválido.'); }
   const host = source.hostname;
-  if (source.protocol !== 'https:' || source.username || source.password || !['kaggle.com', 'googleapis.com', 'googleusercontent.com'].some(domain => host === domain || host.endsWith('.' + domain))) throw new KaggleError(502, 'O endereço de saída do Kaggle é inválido.');
+  if (source.protocol !== 'https:' || source.username || source.password || !['kaggle.com', 'kaggleusercontent.com', 'googleapis.com', 'googleusercontent.com'].some(domain => host === domain || host.endsWith('.' + domain))) throw new KaggleError(502, 'O Kaggle retornou um endereço de saída não permitido (' + host + ').');
   return source;
 }
 async function resultText(url) {
   if (!url) return null;
   const source = trustedOutputUrl(url);
-  const response = await fetch(source, { redirect: 'error', signal: AbortSignal.timeout(20000) });
+  const response = await fetch(source, { credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'follow', signal: AbortSignal.timeout(20000) });
   if (!response.ok) return null;
+  if (response.url) trustedOutputUrl(response.url);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let result = '', size = 0;
@@ -101,7 +105,8 @@ async function kaggle(request, env, url) {
       const files = await rpc('ListKernelSessionOutput', { userName: owner, kernelSlug: job, pageSize: 100 }, token);
       const file = files.files?.find(entry => entry.fileName === name);
       if (!file?.url) return json({ error: 'Imagem não encontrada.' }, 404);
-      const response = await fetch(trustedOutputUrl(file.url), { redirect: 'error', signal: AbortSignal.timeout(20000) });
+      const response = await fetch(trustedOutputUrl(file.url), { credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'follow', signal: AbortSignal.timeout(20000) });
+      if (response.url) trustedOutputUrl(response.url);
       if (!response.ok || !response.body) return json({ error: 'Falha ao buscar imagem.' }, 502);
       const reader = response.body.getReader(), chunks = []; let size = 0;
       for (;;) { const { value, done } = await reader.read(); if (done) break; size += value.byteLength; if (size > 5_000_000) { await reader.cancel(); return json({ error: 'Imagem acima de 5 MB.' }, 413); } chunks.push(value); }

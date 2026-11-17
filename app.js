@@ -143,7 +143,7 @@ function updateResume() {
 }
 
 async function kaggleRequest(action, credentials, data) {
-  const { kaggleApi } = await import('./kaggle-api.js?v=2');
+  const { kaggleApi } = await import('./kaggle-api.js?v=3');
   const response = await kaggleApi(action, { ...credentials, ...data });
   const reply = await response.json().catch(() => null);
   if (!response.ok || !reply) {
@@ -186,7 +186,7 @@ async function showKaggleImages(job, credentials, files) {
   for (const url of resultUrls.splice(0)) URL.revokeObjectURL(url);
   $('result-images').replaceChildren();
   for (const file of files) {
-    const { kaggleApi } = await import('./kaggle-api.js?v=2');
+    const { kaggleApi } = await import('./kaggle-api.js?v=3');
     const response = await kaggleApi('image', { ...credentials, job: job.job, name: file.name });
     if (!response.ok) { setStatus('Não foi possível carregar uma imagem do Kaggle.', true); continue; }
     const url = URL.createObjectURL(await response.blob()); resultUrls.push(url);

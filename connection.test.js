@@ -9,7 +9,7 @@ globalThis.fetch=async(url,options)=>{
  observed={url,options};
  return Response.json(responseStatus===200?{kernels:[]}:{code:401,message:'Unauthorized'},{status:responseStatus});
 };
-const {kaggleApi}=await import('./kaggle-api.js');
+const {kaggleApi,trustedOutputUrl}=await import('./kaggle-api.js');
 const {notebookFor}=await import('./app.js');
 test('GitHub frontend tests token directly with Kaggle, without ChatGPT login',async()=>{
  const response=await kaggleApi('check',{username:'ruansakil',token:'KGAT_test.with=symbols123'});
@@ -30,4 +30,18 @@ test('notebook uses Coder 7B and both GPUs',()=>{
  assert.match(out.cells[2].source,/GPU_COUNT = 2/);
  assert.match(out.cells[2].source,/Coder-7B/);
  assert.doesNotMatch(out.cells[2].source,/30B/);
+});
+
+test('output URLs support Kaggle content hosts, signed storage URLs and relative API paths',()=>{
+ for (const url of [
+  'https://www.kaggleusercontent.com/kf/123/bloxr-output.txt?signature=example',
+  'https://storage.googleapis.com/kaggle-output-data/file.txt?X-Goog-Signature=example',
+  '/api/v1/kernels/output/file.txt',
+  '//www.kaggleusercontent.com/kf/123/render.png'
+ ]) assert.equal(trustedOutputUrl(url).protocol,'https:');
+ assert.equal(trustedOutputUrl('/api/v1/output').hostname,'www.kaggle.com');
+});
+test('untrusted URLs stay blocked',()=>{
+ for(const url of ['',null,'http://www.kaggle.com/file','https://kaggle.com.attacker.example/file','https://user:pass@www.kaggle.com/file','data:text/plain,test'])
+  assert.throws(()=>trustedOutputUrl(url));
 });
